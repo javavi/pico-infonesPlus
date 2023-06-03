@@ -9,7 +9,7 @@ static const uint16_t nespad_program_instructions[] = {
     0xea01, //  1: set    pins, 1         side 0 [10]
     0xe027, //  2: set    x, 7            side 0
     0xe000, //  3: set    pins, 0         side 0
-    0x4401, //  4: in     pins, 1         side 0 [4]
+    0x4402, //  4: in     pins, 2         side 0 [4]      <--- 2
     0xf500, //  5: set    pins, 0         side 1 [5]
     0x0044, //  6: jmp    x--, 4          side 0
             //     .wrap
@@ -17,7 +17,7 @@ static const uint16_t nespad_program_instructions[] = {
 
 static const struct pio_program nespad_program = {
     .instructions = nespad_program_instructions,
-    .length = 7,
+    .length =  7,
     .origin = -1,
 };
 
@@ -30,7 +30,8 @@ static inline pio_sm_config nespad_program_get_default_config(uint offset) {
 
 static PIO pio = pio0;
 static uint8_t sm = -1;
-uint8_t nespad_state = 0;
+uint8_t nespad_state  = 0;  // Joystick 1
+uint8_t nespad_state2 = 0;  // Joystick 2
 
 bool nespad_begin(uint32_t cpu_khz, uint8_t clkPin, uint8_t dataPin,
                   uint8_t latPin) {
@@ -44,13 +45,17 @@ bool nespad_begin(uint32_t cpu_khz, uint8_t clkPin, uint8_t dataPin,
     sm_config_set_set_pins(&c, latPin, 1);
     pio_gpio_init(pio, clkPin);
     pio_gpio_init(pio, dataPin);
+    pio_gpio_init(pio, dataPin+1);  // +1 Pin for Joystick2
     pio_gpio_init(pio, latPin);
     gpio_set_pulls(dataPin, true, false); // Pull data high, 0xFF if unplugged
+    gpio_set_pulls(dataPin+1, true, false); // Pull data high, 0xFF if unplugged for Joystick2
+
     pio_sm_set_pindirs_with_mask(pio, sm,
                                  (1 << clkPin) | (1 << latPin), // Outputs
-                                 (1 << clkPin) | (1 << dataPin) |
-                                     (1 << latPin)); // All pins
-    sm_config_set_in_shift(&c, true, true, 8); // R shift, autopush @ 8 bits
+                                 (1 << clkPin) | (1 << latPin) | 
+                                 (1 << dataPin) | (1 << (dataPin+1))
+                                ); // All pins
+    sm_config_set_in_shift(&c, true, true, 16); // R shift, autopush @ 8 bits (@ 16 bits for 2 Joystick)
 
     sm_config_set_clkdiv_int_frac(&c, cpu_khz / 1000, 0); // 1 MHz clock
 
@@ -79,8 +84,34 @@ void nespad_read_start(void) { pio_interrupt_clear(pio, 0); }
 // 0x04=Down, 0x08=Up, 0x10=Start, 0x20=Select, 0x40=B, 0x80=A. Must first
 // call nespad_begin() once to set up PIO. Result will be 0 if PIO failed to
 // init (e.g. no free state machine).
+
 void nespad_read_finish(void) {
   // Right-shift was used in sm config so bit order matches NES controller
   // bits used elsewhere in picones, but does require shifting down...
-  nespad_state = (sm >= 0) ? ((pio_sm_get_blocking(pio, sm) >> 24) ^ 0xFF) : 0;
+  uint16_t temp16 = (sm >= 0) ? ((pio_sm_get_blocking(pio, sm) >> 16) ^ 0xFFFF) : 0;   // for 2 Joystick)
+  uint16_t temp1, temp2;
+// 1 -------------------------------------------------------  
+  temp1  = temp16 & 0x5555;             // 08070605.04030201
+  temp2  = temp16 & 0xAAAA;             // 80706050.40302010
+  temp16 = temp16 & 0xAA55;             // 80706050.04030201
+  temp1  = temp1 >> 7;                  // 00000000.80706050
+  temp2  = temp2 << 7;                  // 04030201.00000000
+  temp16 = temp16 | temp1 | temp2;      // 84736251.84736251
+// 2 -------------------------------------------------------
+  temp1  = temp16 & 0x5050;             // 04030000.04030000
+  temp2  = temp16 & 0x0A0A;             // 00006050.00006050
+  temp16 = temp16 & 0xA5A5;             // 80700201.80700201
+  temp1  = temp1 >> 3;                  // 00004030.00004030
+  temp2  = temp2 << 3;                  // 06050000.06050000
+  temp16 = temp16 | temp1 | temp2;      // 86754231.86754231
+// 3 -------------------------------------------------------
+  temp1  = temp16 & 0x4444;             // 06000200.06000200
+  temp2  = temp16 & 0x2222;             // 00700030.00700030
+  temp16 = temp16 & 0x9999;             // 80054001.80054001
+  temp1  = temp1 >> 1;                  // 00600020.00600020
+  temp2  = temp2 << 1;                  // 07000300.07000300
+  temp16 = temp16 | temp1 | temp2;      // 87654321.87654321
+//----------------------------------------------------------
+  nespad_state  = temp16;               // 00000000.87654321 Joy1
+  nespad_state2 = temp16 >> 8;          // 00000000.87654321 Joy2
 }

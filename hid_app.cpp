@@ -34,6 +34,7 @@ extern "C"
             return vid == 0x057e && ( pid == 0x2009 || pid == 0x2017);
         }
 
+
         struct DS4Report
         {
             // https://www.psdevwiki.com/ps4/DS4-USB
@@ -213,6 +214,7 @@ extern "C"
         {
             printf("Nintendo: len = %d\n", len);
         }
+//==================================================================================================================
         else
         {
             if (rpt_count == 1 && rpt_info_arr[0].report_id == 0)
@@ -237,6 +239,8 @@ extern "C"
 
                 report++;
                 len--;
+                //-------------------------------------------------------------------
+                //printf("Composite report: REPORT = %d len = %d\n", report, len);
             }
 
             if (!rpt_info)
@@ -252,9 +256,37 @@ extern "C"
                 switch (rpt_info->usage)
                 {
                 case HID_USAGE_DESKTOP_KEYBOARD:
-                    TU_LOG1("HID receive keyboard report\n");
+                {
+                    //TU_LOG1("HID receive keyboard report\n");
                     // Assume keyboard follow boot report layout
                     //                process_kbd_report((hid_keyboard_report_t const *)report);
+                    //----------------------------------------------------------------------------------------------
+                    struct KeyboardReport
+                    {
+                        uint8_t id[2];
+                        uint8_t keys[4];
+                        uint8_t stat[2];
+                    };
+                    auto *rep = reinterpret_cast<const KeyboardReport *>(report);
+                    auto &gp = io::getCurrentGamePadState(0);
+
+                    gp.buttons = 0x00000000;        // Сбрасываем кнопки
+                    for (uint8_t i = 0; i < 4; i++)
+                    {
+                        if (rep->keys[i] == 0x1D) gp.buttons |= 0x00000001; // 'Z' => (A)
+                        if (rep->keys[i] == 0x1B) gp.buttons |= 0x00000002; // 'B' => (B)
+                        if (rep->keys[i] == 0x04) gp.buttons |= 0x00000004; // 'A' => (X)
+                        if (rep->keys[i] == 0x16) gp.buttons |= 0x00000008; // 'Y' => (Y)
+                        if (rep->keys[i] == 0x2C) gp.buttons |= 0x00000040; // 'SPACE' => (SEL)
+                        if (rep->keys[i] == 0x28) gp.buttons |= 0x00000080; // 'ENTER' => (START)
+                        if (rep->keys[i] == 0x4F) gp.buttons |= 0x40000000; // RIGHT
+                        if (rep->keys[i] == 0x50) gp.buttons |= 0x80000000; // LEFT
+                        if (rep->keys[i] == 0x51) gp.buttons |= 0x10000000; // DN
+                        if (rep->keys[i] == 0x52) gp.buttons |= 0x20000000; // UP
+                        // printf("%X", rep->keys[i]);
+                    }
+                    //----------------------------------------------------------------------------------------------
+                }
                     break;
 
                 case HID_USAGE_DESKTOP_MOUSE:
@@ -268,9 +300,13 @@ extern "C"
                     // TU_LOG1("HID receive joystick report\n");
                     struct JoyStickReport
                     {
-                        uint8_t axis[3];
-                        uint8_t buttons;
-                        // 実際のところはしらん
+                        //----------------------------------------------------------------
+                        //uint8_t axis[3];
+                        //uint8_t buttons;
+                        uint8_t axis[5];
+                        uint8_t buttons1;
+                        uint8_t buttons2;
+                        //
                     };
                     auto *rep = reinterpret_cast<const JoyStickReport *>(report);
                     //                printf("x %d y %d button %02x\n", rep->axis[0], rep->axis[1], rep->buttons);
@@ -278,18 +314,66 @@ extern "C"
                     gp.axis[0] = rep->axis[0];
                     gp.axis[1] = rep->axis[1];
                     gp.axis[2] = rep->axis[2];
-                    gp.buttons = rep->buttons;
+                    //---------------------------------------------------------------------
+                    gp.buttons =  (rep->buttons1 >> 6);             //BAYX1111 -> 000000BA         
+                    gp.buttons |= (rep->buttons1 >> 2 & 0x0C);      //BAYX1111 -> 00BAXY11 -> 0000XY00
+                    if (rep->buttons2 & 0xA8) {gp.buttons |= 0x80;} //Start
+                    if (rep->buttons2 & 0x54) {gp.buttons |= 0x40;} //Select
+                    //---------------------------------------------------------------------
+                    //gp.buttons = rep->buttons;
                     gp.convertButtonsFromAxis(0, 1);
 
-                    // BUFFALO BGC-FC801
-                    // VID = 0411, PID = 00c6
                 }
                 break;
 
                 case HID_USAGE_DESKTOP_GAMEPAD:
-                    TU_LOG1("HID receive gamepad report\n");
+                {
+                    //TU_LOG1("HID receive gamepad report\n");
+                    //-----------------------------------------------------------------
+                    struct GamePadReport 
+                    {
+                        uint8_t buttons[3];
+                        uint8_t axis[4];
+                        uint8_t DirPad[4];
+                        uint8_t ActPad[4];
+                        uint8_t Triger1[2];
+                        uint8_t Triger2[2];
+                        uint8_t last[8];
+                    };
+  
+                    auto rep = reinterpret_cast<const GamePadReport *>(report);
+ 
+                    auto &gp = io::getCurrentGamePadState(0);
 
-                    break;
+                    gp.buttons = (rep->buttons[1] << 6);          //StSe000000
+                    if (rep->buttons[0] & 0xA0) {gp.buttons |= 0x80;} //Start
+                    if (rep->buttons[0] & 0x50) {gp.buttons |= 0x40;} //Select
+
+                    gp.hat = static_cast<io::GamePadState::Hat>(rep->buttons[2] & 15);
+                    gp.convertButtonsFromHat();
+
+                    gp.axis[0] = rep->axis[0];
+                    gp.axis[1] = rep->axis[1];
+                    gp.convertButtonsFromAxis(0, 1);
+
+                    //if (rep->DirPad[0]) gp.buttons |= 0x40000000; // RIGHT
+                    //if (rep->DirPad[1]) gp.buttons |= 0x80000000; // LEFT
+                    //if (rep->DirPad[2]) gp.buttons |= 0x20000000; // UP 
+                    //if (rep->DirPad[3]) gp.buttons |= 0x10000000; // DN
+
+                    if (rep->buttons[0] & 0x01) gp.buttons |= 0x08; // Y 
+                    if (rep->buttons[0] & 0x02) gp.buttons |= 0x02; // B 
+                    if (rep->buttons[0] & 0x04) gp.buttons |= 0x01; // A
+                    if (rep->buttons[0] & 0x08) gp.buttons |= 0x04; // X
+
+                    //if (rep->ActPad[0]) gp.buttons |= 0x08; // Y 
+                    //if (rep->ActPad[1]) gp.buttons |= 0x02; // B
+                    //if (rep->ActPad[2]) gp.buttons |= 0x01; // A 
+                    //if (rep->ActPad[3]) gp.buttons |= 0x04; // X
+
+
+                }
+                break;
 
                 default:
                     break;

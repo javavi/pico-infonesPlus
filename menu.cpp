@@ -13,7 +13,6 @@
 #include "RomLister.h"
 #include "menu.h"
 #include "nespad.h"
-#include "wiipad.h"
 
 #include "font_8x8.h"
 #define FONT_CHAR_WIDTH 8
@@ -72,9 +71,6 @@ static constexpr int B = 1 << 1;
 static constexpr int X = 1 << 8;
 static constexpr int Y = 1 << 9;
 
-char getcharslicefrom8x8font(char c, int rowInChar) {
-    return font_8x8[(c - FONT_FIRST_ASCII) + (rowInChar)*FONT_N_CHARS];
-}
 void RomSelect_PadState(DWORD *pdwPad1, bool ignorepushed = false)
 {
 
@@ -93,9 +89,6 @@ void RomSelect_PadState(DWORD *pdwPad1, bool ignorepushed = false)
             (gp.buttons & io::GamePadState::Button::Y ? Y : 0) |
             0;
     v |= nespad_state;
-#if WII_PIN_SDA >= 0 and WII_PIN_SCL >= 0
-    v |= wiipad_read();
-#endif
 
     *pdwPad1 = 0;
    
@@ -150,7 +143,7 @@ void RomSelect_DrawLine(int line, int selectedRow)
         }
 
         int rowInChar = line % FONT_CHAR_HEIGHT;
-        char fontSlice = getcharslicefrom8x8font(c, rowInChar); //font_8x8[(c - FONT_FIRST_ASCII) + (rowInChar)*FONT_N_CHARS];
+        char fontSlice = font_8x8[(c - FONT_FIRST_ASCII) + (rowInChar)*FONT_N_CHARS];
         for (auto bit = 0; bit < 8; bit++)
         {
             if (fontSlice & 1)
@@ -368,9 +361,11 @@ void screenSaver()
         if ((frameCount % 3) == 0)
         {
             auto color = rand() % 63;
+            auto color1 = rand() % 63;
             auto row = rand() % SCREEN_ROWS;
             auto column = rand() % SCREEN_COLS;
-            putText(column, row, " ", color, color);
+            //putText(column, row, " ", color, color);
+            putText(column, row, " Murmulator-NES ", color, color1);
         }
     }
 }
@@ -572,15 +567,9 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal)
                                         }
                                         printf("Flashing %d bytes to flash address %x\n", bytesRead, ofs);
                                         printf("  -> Erasing...");
-
-                                        // Disable interupts, erase, flash and enable interrupts
-                                        uint32_t ints = save_and_disable_interrupts();
                                         flash_range_erase(ofs, bufsize);
                                         printf("\n  -> Flashing...");
                                         flash_range_program(ofs, buffer, bufsize);
-                                        restore_interrupts(ints);
-                                        //
-                                        
                                         printf("\n");
                                         ofs += bufsize;
                                     }
@@ -684,10 +673,6 @@ void menu(uintptr_t NES_FILE_ADDR, char *errorMessage, bool isFatal)
             break;
         }
     }
-#if WII_PIN_SDA >= 0 and WII_PIN_SCL >= 0
-    wiipad_end();
-#endif
-
     // Don't return from this function call, but reboot in order to get the sound properly working
     // Starting emulator after return from menu often disables or corrupts sound
     // After reboot, the emulator starts the selected game.
