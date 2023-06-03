@@ -3,6 +3,7 @@ A NES Emulator for the Raspberry PI Pico with SD card and menu support. You can 
 
 - [Pimoroni Pico DV Demo Base](https://shop.pimoroni.com/products/pimoroni-pico-dv-demo-base?variant=39494203998291) hdmi add-on board. 
 - [Adafruit DVI Breakout For HDMI Source Devices](https://www.adafruit.com/product/4984) and  [Adafruit Micro-SD breakout board+](https://www.adafruit.com/product/254) together with a breadboard.
+- [MURMULATOR Platform Base](https://t.me/ZX_MURMULATOR)
 - A custom printed circuit board designed by [@johnedgarpark](https://twitter.com/johnedgarpark). A NES or SNES controller port can be soldered on this PCB. 
 
 The emulator used is  [Infones by Jay Kumogata](https://github.com/jay-kumogata/InfoNES) which was ported to the [Raspberry PI Pico by Shuichi Takano](https://github.com/shuichitakano/pico-infones) with changes done by me to accomodate the SD card menu.
@@ -145,6 +146,11 @@ Note. The Shotky Diode (VSYS - Pin 39 to breadboard + column) and the wire on br
 [See Chapter 4.6 - Powering the Board of the Raspberry Pi Pico Getting Started guide](https://datasheets.raspberrypi.com/pico/getting-started-with-pico.pdf) 
 
 ![Image](assets/PicoInfoNesPlusAdafruit.jpeg)
+
+### MURMULATOR Platform
+![Image](assets/Murmulator-1_BSchem.JPG)
+![Image](assets/Murmulator-2_BSchem.JPG)
+![Image](assets/Murmulator-NES_Schem.JPG)
 
 ## PCB
 

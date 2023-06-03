@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 3.13)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
+# MURMULATOR
+set(INFONES_PLUS_HW_CONFIG 4 CACHE STRING "Select the hardware configuration for MURMULATOR board")   
 # Add new build type RELEASENODEBUG
 # usage
 # cmake -DCMAKE_BUILD_TYPE=RELEASENODEBUG ..
@@ -112,6 +114,22 @@ elseif ( INFONES_PLUS_HW_CONFIG EQUAL 3 )
 	# But once figured out, this is where that will go:
 	#set(WII_SDA "2" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
 	#set(WII_SCL "3" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
+elseif ( INFONES_PLUS_HW_CONFIG EQUAL 4 )
+	# --------------------------------------------------------------------
+	# Alternate config for use with MURMULATOR HDMI board
+	# --------------------------------------------------------------------
+	set(DVICONFIG "dviConfig_PimoroniDemoDVSock" CACHE STRING
+	  "Select a default pin configuration from common_dvi_pin_configs.h")
+        set(LED_GPIO_PIN "25" CACHE STRING "Select the GPIO pin for LED")
+	set(SD_CS "5" CACHE STRING "Specify the Chip Select GPIO pin for the SD card")
+	set(SD_SCK "2" CACHE STRING "Specify de Clock GPIO pin for the SD card")
+	set(SD_MOSI "3" CACHE STRING "Select the Master Out Slave In GPIO pin for the SD card")
+	set(SD_MISO "4" CACHE STRING "Select the Master In Slave Out GPIO pin for the SD card")
+	set(NES_CLK "14" CACHE STRING "Select the Clock GPIO pin for NES controller")
+	set(NES_LAT "15" CACHE STRING "Select the Latch GPIO pin for NES controller")
+    set(NES_DATA "16" CACHE STRING "Select the Data GPIO pin for NES controller")
+	set(WII_SDA "-1" CACHE STRING "Select the SDA GPIO pin for Wii Classic controller")
+	set(WII_SCL "-1" CACHE STRING "Select the SCL GPIO pin for Wii Classic controller")
 endif ( )
 
 # --------------------------------------------------------------------
