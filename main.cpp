@@ -85,10 +85,10 @@ namespace
 
     enum class ScreenMode
     {
-        SCANLINE_8_7,
         NOSCANLINE_8_7,
-        SCANLINE_1_1,
         NOSCANLINE_1_1,
+        SCANLINE_8_7,
+        SCANLINE_1_1,
         MAX,
     };
     ScreenMode screenMode_{};
