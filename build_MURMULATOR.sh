@@ -1,7 +1,6 @@
-:
 # ====================================================================================
 # PICO-INFONESPLUS build script with default configuration
-# Builds the emulator for use with the 
+# Builds the emulator for use with the
 # MURMULATOR platform
 # https://t.me/ZX_MURMULATOR
 # ====================================================================================
